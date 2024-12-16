@@ -8470,14 +8470,16 @@ Unique clusters: {0, 1, 2}
 
 
 ## Visualizations
+![Visualization: correlation_heatmap.png](correlation_heatmap.png)
 ![Visualization: missing_values.png](missing_values.png)
 ![Visualization: outlier_visualization.png](outlier_visualization.png)
+![Visualization: kmeans_clustering.png](kmeans_clustering.png)
+![Visualization: hierarchical_dendrogram.png](hierarchical_dendrogram.png)
 ![Visualization: elbow_method.png](elbow_method.png)
 
 
 ## AI Generated Code
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -8485,68 +8487,69 @@ import seaborn as sns
 df = pd.read_csv('books_dataset.csv')
 
 # Data Cleaning
-# 1. Check for missing values
+# Drop duplicates
+df.drop_duplicates(inplace=True)
+
+# Check for missing values
 missing_values = df.isnull().sum()
+print("Missing values:\n", missing_values)
 
-# 2. Drop columns with a high percentage of missing values (e.g., more than 50%)
-threshold = 0.5 * len(df)
-df_cleaned = df.dropna(thresh=threshold, axis=1)
+# Fill missing values if any (example: with median for numerical columns)
+numerical_cols = df.select_dtypes(include=['int64', 'float64']).columns
+df[numerical_cols] = df[numerical_cols].fillna(df[numerical_cols].median())
 
-# 3. Fill missing values for 'average_rating' with the mean rating
-df_cleaned['average_rating'].fillna(df_cleaned['average_rating'].mean(), inplace=True)
+# Fill categorical missing values (example: with mode)
+categorical_cols = df.select_dtypes(include=['object']).columns
+for col in categorical_cols:
+    df[col].fillna(df[col].mode()[0], inplace=True)
 
-# 4. Convert relevant columns to the correct data types
-df_cleaned['original_publication_year'] = pd.to_datetime(df_cleaned['original_publication_year'], errors='coerce').dt.year
+# Convert 'original_publication_year' to integer
+df['original_publication_year'] = df['original_publication_year'].astype(int)
 
-# 5. Remove duplicate rows
-df_cleaned = df_cleaned.drop_duplicates()
-
-# Data Analysis
-# 1. Basic statistics
-stats = df_cleaned.describe()
-
-# 2. Correlation matrix
-correlation_matrix = df_cleaned.corr()
-
-# 3. Group by authors and calculate average ratings
-average_rating_by_author = df_cleaned.groupby('authors')['average_rating'].mean().sort_values(ascending=False)
-
-# 4. Top 10 books with highest average ratings
-top_books = df_cleaned.nlargest(10, 'average_rating')[['title', 'average_rating']]
-
-# Data Visualization
-# 1. Distribution of average ratings
-plt.figure(figsize=(10, 6))
-sns.histplot(df_cleaned['average_rating'], bins=20, kde=True)
+# Analyze Average Ratings Distribution
+plt.figure(figsize=(12, 6))
+sns.histplot(df['average_rating'], bins=20, kde=True)
 plt.title('Distribution of Average Ratings')
 plt.xlabel('Average Rating')
 plt.ylabel('Frequency')
 plt.show()
 
-# 2. Correlation heatmap
-plt.figure(figsize=(12, 8))
-sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap='coolwarm')
+# Analyze Ratings Count by Cluster
+plt.figure(figsize=(12, 6))
+sns.boxplot(x='Cluster', y='ratings_count', data=df)
+plt.title('Ratings Count by Cluster')
+plt.xlabel('Cluster')
+plt.ylabel('Ratings Count')
+plt.show()
+
+# Analyze Average Ratings by Language Code
+avg_rating_by_language = df.groupby('language_code')['average_rating'].mean().sort_values()
+plt.figure(figsize=(12, 6))
+avg_rating_by_language.plot(kind='bar')
+plt.title('Average Rating by Language Code')
+plt.xlabel('Language Code')
+plt.ylabel('Average Rating')
+plt.xticks(rotation=45)
+plt.show()
+
+# Scatter Plot of Average Rating vs. Ratings Count
+plt.figure(figsize=(12, 6))
+sns.scatterplot(x='ratings_count', y='average_rating', data=df, hue='Cluster', alpha=0.6)
+plt.title('Average Rating vs. Ratings Count')
+plt.xlabel('Ratings Count')
+plt.ylabel('Average Rating')
+plt.legend(title='Cluster')
+plt.show()
+
+# Correlation Matrix
+plt.figure(figsize=(12, 10))
+correlation_matrix = df.corr()
+sns.heatmap(correlation_matrix, annot=True, fmt='.2f', cmap='coolwarm', square=True, cbar_kws={"shrink": .8})
 plt.title('Correlation Matrix')
 plt.show()
 
-# 3. Average ratings by author bar plot
-plt.figure(figsize=(12, 6))
-average_rating_by_author.head(20).plot(kind='barh', color='skyblue')
-plt.title('Average Ratings by Author')
-plt.xlabel('Average Rating')
-plt.ylabel('Authors')
-plt.show()
-
-# 4. Top 10 books with highest ratings visualization
-plt.figure(figsize=(12, 6))
-sns.barplot(x='average_rating', y='title', data=top_books, palette='viridis')
-plt.title('Top 10 Books with Highest Average Ratings')
-plt.xlabel('Average Rating')
-plt.ylabel('Book Title')
-plt.show()
-
-# Save cleaned dataset to a new CSV file
-df_cleaned.to_csv('cleaned_books_dataset.csv', index=False)
+# Save cleaned data
+df.to_csv('cleaned_books_dataset.csv', index=False)
 
 ## AI Generated Code's Output
 Error while executing generated code: [Errno 2] No such file or directory: 'books_dataset.csv'
@@ -8562,35 +8565,57 @@ A hierarchical dendrogram further highlighted relationships between data points.
 
 ## Insights from AI Analysis
 
-To analyze the provided dataset regarding books, we can approach the insights and patterns from various perspectives, focusing on different columns. Here are several areas of analysis:
+To analyze the provided dataset, we can break it down based on the columns listed. Here's how we can derive insights and patterns from the data:
 
-### 1. **Authors and Popularity**
-   - **Authors**: Assess the distribution of books across different authors. Identifying which authors have the most books in the dataset can provide insights into prevalent writers in the genre or theme.
-   - **Average Ratings and Ratings Count**: Evaluate the average ratings for books by different authors. An author with a high average rating with many ratings could indicate popularity and reader satisfaction. For example, examining the top five authors with the highest average ratings can provide insights into potential recommendations.
+### Columns Overview:
 
-### 2. **Publication Trends**
-   - **Original Publication Year**: Analyzing the distribution of book releases over the years can reveal trends in publishing. For instance, a spike in books published in specific decades may indicate a resurgence of interest in certain genres or themes. 
-   - **Lifespan of Popularity**: Cross-reference the original publication year with average ratings and ratings counts to understand how long books remain popular. 
+1. **Identifiers:**
+   - `book_id`, `goodreads_book_id`, `best_book_id`, `work_id`: These columns serve as unique identifiers for books and their respective versions on Goodreads and other platforms. We can use them to track specific books across various datasets.
 
-### 3. **Language Distribution**
-   - **Language Code**: Examine how many titles are available in different languages. This can provide insights into the scope of the dataset and the diversity of literature. More books in popular languages (like English, Spanish, etc.) compared to others may indicate market trends in publishing.
+2. **Textual Information:**
+   - `authors`: This column allows for analysis of collaboration trends among authors (e.g., co-authorship) and can be used to determine which authors are frequently associated with high ratings or popular books.
+   - `original_title`, `title`: These columns can provide insight into the popularity of different titles. We might analyze how the popularity of a book’s title correlates with its ratings and reviews.
 
-### 4. **Ratings Analysis**
-   - **Ratings Breakdown**: Analyze the distribution of ratings (1 to 5) across books. A high counts of 4 and 5 star ratings suggest a positive reception, whereas high counts of low star ratings (1-2) might indicate titles that are polarizing or poorly received.
-   - **Average Rating vs. Ratings Count**: A correlation can be derived from average ratings and ratings count to find out whether high-quality books are getting enough attention.
+3. **Publication and Language:**
+   - `original_publication_year`: This provides context on trends in book publishing over time. We can analyze how ratings and reviews have evolved over the years, possibly indicating shifts in reader preferences.
+   - `language_code`: Insights can be drawn about book availability in different languages and the popularity of translations.
 
-### 5. **Book Identification and Meta Data**
-   - **Book IDs**: Assess the uniqueness and how they correlate with `goodreads_book_id`, `best_book_id`, and `work_id`. This correlation can help determine how books are catalogued in different systems, which could aid in identifying discrepancies or overlapping cataloging practices.
-   - **ISBNs**: If available, analyze how many unique titles have an ISBN or ISBN13 that differ. This could also highlight editions or reprints of the same book.
+4. **Rating Metrics:**
+   - `average_rating`: A key metric that indicates overall reception. A deeper analysis could explore how average ratings correlate with publication year or book genre (if genre data is available).
+   - `ratings_count`, `work_ratings_count`, `work_text_reviews_count`: These counts can indicate the level of engagement from readers. A book with a high ratings count but low average rating may suggest that while it is widely read, it may not be well-received.
 
-### 6. **Visual Representation**
-   - **Average Ratings and Book Counts**: Create scatter plots to visualize the relationship between average ratings and ratings count for the books. It could show whether more popular books statistically receive better ratings.
-   - **Histograms and Time Series Analysis**: To effectively visualize publication years, histograms can be generated to see the count of books published per year and potentially track trends.
+5. **Rating Breakdown:**
+   - `ratings_1`, `ratings_2`, `ratings_3`, `ratings_4`, `ratings_5`: These provide a granular view of how readers perceive the book. Patterns can be observed to understand the distribution of ratings:
+     - A high count of 5-star ratings relative to lower ratings may indicate an overwhelmingly positive reception.
+     - Conversely, a significant number of 1 or 2-star ratings might signal issues that could align with themes or author styles.
 
-### 7. **Images and Title Analysis**
-   - **Image Availability**: Check the presence of images for books (by comparing `image_url` and `small_image_url` counts with `book_id` counts) which can reflect on the engagement metrics for physical vs. digital catalogs.
-   - **Title Length Analysis**: Consider the lengths of titles. Shorter titles may correlate with higher ratings due to memorability or branding. 
+6. **Visual Content:**
+   - `image_url`, `small_image_url`: While not quantitative, these columns could be analyzed for trends in visual branding—examining how cover designs may relate to ratings, genre popularity, or reader engagement.
 
-### Conclusion
-These analyses can give a comprehensive understanding of the dataset, revealing not only popular authors and trending years of publication but also the reception of different literary works based on ratings. The categorization and correlation within the data may lead to actionable insights for libraries, publishers, and readers. Data visualizations and exploratory data analysis methods will further enrich these insights, making trends and correlations more accessible.
+### Insights and Patterns:
+
+1. **Author Popularity:**
+   - By aggregating ratings by author, one could identify which authors consistently produce highly-rated books and are likely to have a strong following. 
+
+2. **Time Trends in Publishing:**
+   - Analyzing `original_publication_year` against `average_rating` could reveal how the literary landscape has evolved. For example, books published in certain decades may yield richer narratives or different thematic focuses.
+
+3. **Engagement vs. Reception:**
+   - A correlation analysis between `ratings_count` and `average_rating` can expose discrepancies where popular books receive lower average ratings—highlighting potential cases where marketing overshadows quality.
+
+4. **Language Influence:**
+   - Evaluating `language_code` may show geographical inclinations in reading preferences and whether books in certain languages tend to receive better ratings.
+
+5. **Reading Demographics:**
+   - If more demographic data (such as age, gender) were available, it could be insightful to explore how different demographics affect ratings across genres or authors.
+
+### Recommendations for Further Analysis:
+
+- **Genre Analysis:** If genre data can be appended, exploring how various genres perform relative to ratings over time would provide a better understanding of reader preferences.
+  
+- **Sentiment Analysis on Reviews:** Using natural language processing techniques on `work_text_reviews_count` might yield qualitative insights into reader perceptions that numerical ratings alone may obscure.
+
+- **Cover Design Trends:** Investigating any correlations between image appeal (breaching aesthetics) and ratings could provide valuable insights into marketing within literature.
+
+This structured approach to analyzing the dataset will help uncover the nuanced patterns and insights within the book data, guiding both literary professionals and enthusiastic readers.
 This analysis provided actionable insights, paving the way for data-driven decisions.
