@@ -14,7 +14,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 
 # Configuration
-AIPROXY_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6IjIzZjEwMDAxNzhAZHMuc3R1ZHkuaWl0bS5hYy5pbiJ9.yOrJJxuhOmCtLdpcOHX51no76oIcGxvEdlZYlTrDBKQ"
+AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
 API_BASE_URL = "http://aiproxy.sanand.workers.dev/openai/v1"
 HEADERS = {
     "Content-Type": "application/json",
@@ -22,20 +22,24 @@ HEADERS = {
 }
 
 def read_csv(file_name):
-    try:
-        df = pd.read_csv(file_name)
-        return df
-    except Exception as e:
-        print(f"Error reading file {file_name}: {e}")
-        sys.exit(1)
+    encodings = ['utf-8', 'latin1', 'iso-8859-1', 'utf-16']
+    for encoding in encodings:
+        try:
+            df = pd.read_csv(file_name, encoding=encoding)
+            return df
+        except UnicodeDecodeError:
+            continue  # Try the next encoding
+        except Exception as e:
+            print(f"Error reading file {file_name} with encoding {encoding}: {e}")
+    print(f"Failed to read file {file_name}. Please check the file format.")
+    sys.exit(1)
 
 def create_output_directory(file_name):
-    # Create a directory with the base name of the file
-    file_name = file_name.strip(".csv")
-    output_dir = f"./{file_name}"
+    # Extract the base name without the extension
+    base_name = os.path.splitext(os.path.basename(file_name))[0]
+    output_dir = f"./{base_name}"
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
-    
     return output_dir
 
 # Function to handle missing values and generate missing_values.png
@@ -107,7 +111,6 @@ def visualize_outliers(df, outliers_df, output_dir):
     # Save the plot
     try:
         plt.savefig(os.path.join(output_dir, "outlier_visualization.png"), bbox_inches="tight")
-        print(f"Saved outlier visualization at: {os.path.abspath('outlier_visualization.png')}")
     except Exception as e:
         print(f"Error saving plot: {e}")
     
@@ -255,12 +258,12 @@ def generate_readme(data_summary, chart_files, generated_code_outputs, narrative
         # Visualizations
         readme.write("\n\n## Visualizations\n")
         for chart in chart_files:
-            if os.path.exists(chart):  # Check if chart file exists
+            chart_path = os.path.join(output_dir, chart)  # Ensure the path includes output_dir
+            if os.path.exists(chart_path):  # Check if file exists in output_dir
                 readme.write(f"![Visualization: {os.path.basename(chart)}]({chart})\n")
             else:
-                print(f"Warning: File {chart} not found. Skipping.")
+                print(f"Warning: File {chart_path} not found. Skipping.")
 
-        # Generated Code's output
         readme.write("\n\n## AI Generated Code\n")
         readme.write(generated_code_outputs[0])
 
